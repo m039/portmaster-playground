@@ -51,32 +51,32 @@ class Label {
     inline static const unsigned int textQuadIndices[] = {0, 1, 2, 2, 3, 0};
 
     inline static const char * vshader = R"(#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aTexCoord;
+    layout (location = 0) in vec3 aPos;
+    layout (location = 1) in vec2 aTexCoord;
 
-out vec2 TexCoord;
+    out vec2 TexCoord;
 
-uniform mat4 projection;
-uniform mat4 model;
+    uniform mat4 projection;
+    uniform mat4 model;
 
-void main() {
-    gl_Position = projection * model * vec4(aPos, 1.0);
-    TexCoord = aTexCoord;
-}
-)";
+    void main() {
+        gl_Position = projection * model * vec4(aPos, 1.0);
+        TexCoord = aTexCoord;
+    }
+    )";
 
     inline static const char * fshader = R"(#version 330 core
-out vec4 FragColor;
-in vec2 TexCoord;
+    out vec4 FragColor;
+    in vec2 TexCoord;
 
-uniform sampler2D textTexture;
-uniform vec4 textColor;
+    uniform sampler2D textTexture;
+    uniform vec4 textColor;
 
-void main() {
-    vec4 sampled = vec4(1.0, 1.0, 1.0, texture(textTexture, TexCoord).r);
-    FragColor = textColor * sampled;
-}
-)";
+    void main() {
+        vec4 sampled = vec4(1.0, 1.0, 1.0, texture(textTexture, TexCoord).r);
+        FragColor = textColor * sampled;
+    }
+    )";
 
     public:
     bool init(SDL_Renderer *renderer) {
@@ -235,7 +235,7 @@ class Planet {
 
     GLuint _shader;
 
-    float _angle = 0.0f;
+    glm::vec3 _rotation;
 
     public:
     bool init() {
@@ -255,21 +255,28 @@ class Planet {
         return true;
     }
 
-    void render(float deltaTime) {
+    void setXRotation(float value) {
+        _rotation.x = -180 * value;
+    }
+
+    void setYRotation(float value) {
+        _rotation.z = -180 * value;
+    }
+
+    void render() {
         float aspect = (float) WINDOW_WIDTH / (float) WINDOW_HEIGHT;
 
         // Включение глубины для 3D-рендеринга
         glEnable(GL_DEPTH_TEST);
 
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Обновление угла вращения
-        _angle += 45.0f * deltaTime; // 45 градусов в секунду
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Настройка матриц
-        glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f),
-                                          glm::radians(_angle),
-                                          glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 modelMatrix = glm::mat4(1.0f);
+
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(_rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(_rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(_rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
         glm::mat4 view = glm::lookAt(
             glm::vec3(0.0f, 20.0f, 0.0f),  // камера
@@ -279,7 +286,7 @@ class Planet {
 
         float size = 20.0;
 
-        glm::mat4 projection = glm::ortho(-size / 2.0, +size / 2.0, -(size / aspect) / 2.0, +(size / aspect) / 2.0, -20.0, +20.0);
+        glm::mat4 projection = glm::ortho(-size / 2.0, +size / 2.0, -(size / aspect) / 2.0, +(size / aspect) / 2.0, -200.0, +200.0);
 
         // Передача матриц в шейдер
         glUseProgram(_shader);
@@ -582,10 +589,6 @@ int main(int argc, char* argv[]) {
 
     int running = 1;
     while (running) {
-        Uint32 currentTime = SDL_GetTicks();
-        float deltaTime = (currentTime - lastTime) / 1000.0f; // в секундах
-        lastTime = currentTime;
-
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = 0;
@@ -593,6 +596,16 @@ int main(int argc, char* argv[]) {
                 gamepad = SDL_GameControllerOpen(event.cdevice.which);
             } else if (event.type == SDL_KEYDOWN) {
                 label.setText("Key pressed: " + std::string(SDL_GetKeyName(event.key.keysym.sym)));
+             } else if (event.type == SDL_CONTROLLERAXISMOTION) {
+                const Sint16 MAX_STICK_VALUE = 32768;
+
+                if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX) {
+                    planet.setXRotation(static_cast<float>(SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTX)) / MAX_STICK_VALUE);
+                }
+
+                if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY) {
+                    planet.setYRotation(static_cast<float>(SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTY)) / MAX_STICK_VALUE);
+                }
             } else if (event.type == SDL_CONTROLLERBUTTONDOWN) {
                 int buttonCode = event.cbutton.button; 
                 const char* buttonName = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)event.cbutton.button);
@@ -608,7 +621,7 @@ int main(int argc, char* argv[]) {
         // Очистка буферов
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-        planet.render(deltaTime);
+        planet.render();
         label.render();
 
         // Обмен буферами
