@@ -1,0 +1,5 @@
+#!/bin/sh
+
+unset SDL_GAMECONTROLLERCONFIG
+
+./SDL3Test
