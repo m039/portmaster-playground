@@ -10,3 +10,6 @@
 [submodule "sdl2-test/deps/SDL_ttf"]
 	path = sdl2-test/deps/SDL_ttf
 	url = https://github.com/libsdl-org/SDL_ttf
+[submodule "sdl2-test/deps/tinygltf"]
+	path = sdl2-test/deps/tinygltf
+	url = https://github.com/syoyo/tinygltf
