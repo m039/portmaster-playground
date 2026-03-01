@@ -10,8 +10,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
@@ -51,35 +50,34 @@ class Label {
 
     inline static const unsigned int textQuadIndices[] = {0, 1, 2, 2, 3, 0};
 
-    inline static const char * vshader = R"(#version 100
+    inline static const char * vshader = R"(#version 300 es
     precision mediump float;
+    layout (location = 0) in vec3 aPos;
+    layout (location = 1) in vec2 aTexCoord;
 
-    attribute vec3 aPos;
-    attribute vec2 aTexCoord;
+    out vec2 TexCoord;
 
     uniform mat4 projection;
     uniform mat4 view;
     uniform mat4 model;
 
-    varying vec2 TexCoord;
-
     void main() {
         gl_Position = projection * view * model * vec4(aPos, 1.0);
-        
         TexCoord = aTexCoord;
     }
+
     )";
 
-    inline static const char * fshader = R"(#version 100
+    inline static const char * fshader = R"(#version 300 es
     precision mediump float;
-
-    varying vec2 TexCoord;
+    out vec4 FragColor;
+    in vec2 TexCoord;
 
     uniform sampler2D textTexture;
     uniform vec4 textColor;
 
-    void main() {        
-        gl_FragColor = texture2D(textTexture, TexCoord) * textColor;
+    void main() {
+        FragColor = texture(textTexture, TexCoord) * textColor;
     }
     )";
 
@@ -282,7 +280,6 @@ class Planet {
 
         // Включение глубины для 3D-рендеринга
         glEnable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Настройка матриц
         glm::mat4 modelMatrix = glm::mat4(1.0f);
@@ -438,10 +435,10 @@ private:
         return true;
     }
     // Простой вершинный шейдер
-    const char* vertexShaderSource = R"(#version 100
+    const char* vertexShaderSource = R"(#version 300 es
     precision mediump float;
-
-    attribute vec3 aPos;
+    layout (location = 0) in vec3 aPos;
+    layout (location = 1) in vec2 aTexCoord;
 
     uniform mat4 projection;
     uniform mat4 view;
@@ -453,11 +450,13 @@ private:
     )";
 
     // Простой фрагментный шейдер
-    const char* fragmentShaderSource = R"(#version 100
+    const char* fragmentShaderSource = R"(#version 300 es
     precision mediump float;
 
+    out vec4 FragColor;
+
     void main() {
-        gl_FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
     )";
 
@@ -512,6 +511,12 @@ GLuint compileShaders(const char *vshader, const char *fshader) {
 }
 
 int main(int argc, char* argv[]) {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return 1;
@@ -541,10 +546,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-
     int screenWidth = WINDOW_WIDTH;
     int screenHeight = WINDOW_HEIGHT;
     float aspect = (float) screenWidth / screenHeight;
@@ -555,9 +556,7 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
-
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-
+    
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) {
         SDL_Log("Unable to init renderer: %s", SDL_GetError());
@@ -567,6 +566,13 @@ int main(int argc, char* argv[]) {
 
     // Создание контекста OpenGL
     SDL_GLContext context = SDL_GL_CreateContext(window);
+    if (!context) {
+        SDL_Log("Unable to create context: %s", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
+    printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
     if (!planet.init()) {
         SDL_GL_DeleteContext(context);
@@ -623,6 +629,7 @@ int main(int argc, char* argv[]) {
 
         // Очистка буферов
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         planet.render();
         label.render();
