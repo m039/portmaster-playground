@@ -2,7 +2,6 @@
 #include <SDL2/SDL_main.h>
 #include <SDL2/SDL_ttf.h>
 
-#include <GL/glew.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -11,6 +10,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
@@ -50,31 +51,35 @@ class Label {
 
     inline static const unsigned int textQuadIndices[] = {0, 1, 2, 2, 3, 0};
 
-    inline static const char * vshader = R"(#version 330 core
-    layout (location = 0) in vec3 aPos;
-    layout (location = 1) in vec2 aTexCoord;
+    inline static const char * vshader = R"(#version 100
+    precision mediump float;
 
-    out vec2 TexCoord;
+    attribute vec3 aPos;
+    attribute vec2 aTexCoord;
 
     uniform mat4 projection;
+    uniform mat4 view;
     uniform mat4 model;
 
+    varying vec2 TexCoord;
+
     void main() {
-        gl_Position = projection * model * vec4(aPos, 1.0);
+        gl_Position = projection * view * model * vec4(aPos, 1.0);
+        
         TexCoord = aTexCoord;
     }
     )";
 
-    inline static const char * fshader = R"(#version 330 core
-    out vec4 FragColor;
-    in vec2 TexCoord;
+    inline static const char * fshader = R"(#version 100
+    precision mediump float;
+
+    varying vec2 TexCoord;
 
     uniform sampler2D textTexture;
     uniform vec4 textColor;
 
-    void main() {
-        vec4 sampled = vec4(1.0, 1.0, 1.0, texture(textTexture, TexCoord).r);
-        FragColor = textColor * sampled;
+    void main() {        
+        gl_FragColor = texture2D(textTexture, TexCoord) * textColor;
     }
     )";
 
@@ -89,24 +94,14 @@ class Label {
             return false;
         }
 
-        glGenVertexArrays(1, &_vao);
         glGenBuffers(1, &_vbo);
         glGenBuffers(1, &_ebo);
-
-        glBindVertexArray(_vao);
 
         glBindBuffer(GL_ARRAY_BUFFER, _vbo);
         glBufferData(GL_ARRAY_BUFFER, sizeof(textQuadVertices), textQuadVertices, GL_STATIC_DRAW);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(textQuadIndices), textQuadIndices, GL_STATIC_DRAW);
-
-        // Позиции вершин
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        // Текстурные координаты
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
 
         _shader = compileShaders(vshader, fshader);
 
@@ -123,11 +118,9 @@ class Label {
     }
 
     void setText(const std::string &s) {
+        SDL_Color foregroundColor = { 255, 255, 255, 255};
 
-        SDL_Color foregroundColor = { 255, 255, 255 };
-        SDL_Color backgroundColor = { 0, 0, 0 };
-
-        SDL_Surface *tmp = TTF_RenderText_Shaded(_font, s.c_str(), foregroundColor, backgroundColor);
+        SDL_Surface *tmp = TTF_RenderText_Blended(_font, s.c_str(), foregroundColor);
         if (!tmp)
         {
             SDL_Log("Can't create text surface: %s", SDL_GetError());
@@ -149,8 +142,8 @@ class Label {
         glBindTexture(GL_TEXTURE_2D, _textureId);
 
         // Загрузка данных текстуры
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textSurface->w, textSurface->h, 0,
-                    GL_RGBA, GL_UNSIGNED_BYTE, textSurface->pixels);
+        glTexImage2D(GL_TEXTURE_2D, 0, mode, textSurface->w, textSurface->h, 0,
+                    mode, GL_UNSIGNED_BYTE, textSurface->pixels);
 
         // Настройки фильтрации
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -180,6 +173,23 @@ class Label {
         // Активируем шейдер текста
         glUseProgram(_shader);
 
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+
+        // Позиции вершин
+        GLuint aPosLoc = glGetAttribLocation(_shader, "aPos");
+        glEnableVertexAttribArray(aPosLoc);
+        glVertexAttribPointer(aPosLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+
+        // Текстурные координаты
+        GLuint aTexCoordLoc = glGetAttribLocation(_shader, "aTexCoord");
+        glEnableVertexAttribArray(aTexCoordLoc);
+        glVertexAttribPointer(aTexCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
+        glm::mat4 viewMatrix = glm::mat4(1.0);
+        GLint viewLoc = glGetUniformLocation(_shader, "view");
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+
         // Устанавливаем ортогональную проекцию для 2D
         glm::mat4 textProjection = glm::ortho(0.0f, (float)WINDOW_WIDTH, 0.0f, (float)WINDOW_HEIGHT);
         GLint textProjLoc = glGetUniformLocation(_shader, "projection");
@@ -201,13 +211,16 @@ class Label {
         GLint texLoc = glGetUniformLocation(_shader, "textTexture");
         glUniform1i(texLoc, 0);
 
-        // Отрисовка квада с текстом
-        glBindVertexArray(_vao);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        glDisableVertexAttribArray(aPosLoc);
+        glDisableVertexAttribArray(aTexCoordLoc);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
     void destroy() {
-        glDeleteVertexArrays(1, &_vao);
         glDeleteBuffers(1, &_vbo);
         glDeleteBuffers(1, &_ebo);
         glDeleteProgram(_shader);
@@ -224,6 +237,7 @@ class Planet {
         GLuint ebo;
         int indexCount;
         int indexComponentType;
+        int vertexComponentType;
     };
 
     struct Model {
@@ -268,7 +282,6 @@ class Planet {
 
         // Включение глубины для 3D-рендеринга
         glEnable(GL_DEPTH_TEST);
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Настройка матриц
@@ -301,9 +314,12 @@ class Planet {
 
         // Рендеринг модели
         for (const auto& mesh : _model.meshes) {
-            glBindVertexArray(mesh.vao);
+            GLuint aPosLoc = glGetAttribLocation(_shader, "aPos");
+
             if (mesh.vbo) {
                 glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo);
+                glVertexAttribPointer(aPosLoc, 3, mesh.vertexComponentType, GL_FALSE, 0, 0);
+                glEnableVertexAttribArray(aPosLoc);
             }
 
             if (mesh.ebo) {
@@ -312,20 +328,23 @@ class Planet {
             } else {
                 // Если нет индексов, используем glDrawArrays
             }
-            glBindVertexArray(0);
+
+            glDisableVertexAttribArray(aPosLoc);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
         }
     }
 
     void destroy() {
         for (const auto& mesh : _model.meshes) {
-            glDeleteVertexArrays(1, &mesh.vao);
             glDeleteBuffers(1, &mesh.ebo);
+            glDeleteBuffers(1, &mesh.vbo);
         }
         glDeleteProgram(_shader);
     }
 private:
 
-    void loadVertexBuffer(const tinygltf::Model& model, int accessorIdx, GLuint& vbo) {
+    void loadVertexBuffer(const tinygltf::Model& model, int accessorIdx, GLuint& vbo, int& vertexComponentType) {
         const auto& accessor = model.accessors[accessorIdx];
         const auto& bufferView = model.bufferViews[accessor.bufferView];
         const auto& buffer = model.buffers[bufferView.buffer];
@@ -341,9 +360,12 @@ private:
             GL_STATIC_DRAW
         );
 
+        vertexComponentType = accessor.componentType;
+
         // Настройка атрибутов вершин (пример для позиций)
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, accessor.componentType, GL_FALSE, 0, 0);
+        GLuint index = glGetAttribLocation(_shader, "aPos");
+        glVertexAttribPointer(index, 3, vertexComponentType, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray(index);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
@@ -394,14 +416,10 @@ private:
             for (const auto& primitive : mesh.primitives) {
                 MeshData meshData;
 
-                // Создание VAO
-                glGenVertexArrays(1, &meshData.vao);
-                glBindVertexArray(meshData.vao);
-
                 // Загрузка вершинных данных
                 if (primitive.attributes.count("POSITION") > 0) {
                     int posAccessor = primitive.attributes.at("POSITION");
-                    loadVertexBuffer(gltfModel, posAccessor, meshData.vbo);
+                    loadVertexBuffer(gltfModel, posAccessor, meshData.vbo, meshData.vertexComponentType);
                 } else {
                     std::cerr << "No position in model" << std::endl;
                 }
@@ -413,7 +431,6 @@ private:
                     std::cerr << "No indeces in model" << std::endl;
                 }
 
-                glBindVertexArray(0);
                 model.meshes.push_back(meshData);
             }
         }
@@ -421,23 +438,26 @@ private:
         return true;
     }
     // Простой вершинный шейдер
-    const char* vertexShaderSource = R"(
-    #version 330 core
-    layout (location = 0) in vec3 aPos;
-    uniform mat4 model;
-    uniform mat4 view;
+    const char* vertexShaderSource = R"(#version 100
+    precision mediump float;
+
+    attribute vec3 aPos;
+
     uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 model;
+
     void main() {
         gl_Position = projection * view * model * vec4(aPos, 1.0);
     }
     )";
 
     // Простой фрагментный шейдер
-    const char* fragmentShaderSource = R"(
-    #version 330 core
-    out vec4 FragColor;
+    const char* fragmentShaderSource = R"(#version 100
+    precision mediump float;
+
     void main() {
-        FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        gl_FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
     }
     )";
 
@@ -521,9 +541,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 
     int screenWidth = WINDOW_WIDTH;
     int screenHeight = WINDOW_HEIGHT;
@@ -548,35 +568,18 @@ int main(int argc, char* argv[]) {
     // Создание контекста OpenGL
     SDL_GLContext context = SDL_GL_CreateContext(window);
 
-    // Инициализация GLEW
-    GLenum err = glewInit();
-    if (err != GLEW_OK) {
-        std::cerr << "GLEW initialization failed: " << glewGetErrorString(err) << std::endl;
-        SDL_GL_DeleteContext(context);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
-    // Проверка поддержки OpenGL 3.3
-    if (!GLEW_VERSION_3_3) {
-        std::cerr << "OpenGL 3.3 not supported!" << std::endl;
-        SDL_GL_DeleteContext(context);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
     if (!planet.init()) {
         SDL_GL_DeleteContext(context);
         SDL_DestroyWindow(window);
         SDL_Quit();
+        return 1;
     }
 
     if (!label.init(renderer)) {
         SDL_GL_DeleteContext(context);
         SDL_DestroyWindow(window);
         SDL_Quit();
+        return 1;
     }
 
     label.setPosition(10, 10);

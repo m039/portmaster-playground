@@ -13,3 +13,9 @@
 [submodule "sdl2-test/deps/tinygltf"]
 	path = sdl2-test/deps/tinygltf
 	url = https://github.com/syoyo/tinygltf
+[submodule "sdl2-test/deps/glm"]
+	path = sdl2-test/deps/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "sdl2-test/deps/gl4es"]
+	path = sdl2-test/deps/gl4es
+	url = https://github.com/ptitSeb/gl4es.git

@@ -26,12 +26,13 @@ export gamedir="/$directory/ports/Dev/SDL2Test"
 echo $gamedir
 cd $gamedir
 
-export LIBGL_ES=2
-export LIBGL_GL=21
-export LIBGL_FB=4
+#export LIBGL_ES=2
+#export LIBGL_GL=21
+#export LIBGL_FB=4
+
+export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+export DISPLAY=:0
 
 $TASKSET ./SDL2Test 
-
-$ESUDO umount "${weston_dir}"
 
 pm_finish
