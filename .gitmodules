@@ -16,3 +16,6 @@
 [submodule "sdl2-test/deps/glm"]
 	path = sdl2-test/deps/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "raylib-test/deps/raylib"]
+	path = raylib-test/deps/raylib
+	url = https://github.com/raysan5/raylib.git
