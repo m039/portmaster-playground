@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 project(SDLTest)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL3")
 
 set(BUILD_SHARED_LIBS OFF)
 set(SDL_X11_XTEST OFF)
 
-add_subdirectory(deps/SDL)
-add_subdirectory(deps/SDL_ttf)
+add_subdirectory(deps/SDL3)
+add_subdirectory(deps/SDL3_ttf)
 
 set(CMAKE_CXX_STANDARD 17)
 

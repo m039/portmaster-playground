@@ -1,14 +1,14 @@
 [submodule "sdl2-test/deps/SDL"]
-	path = sdl2-test/deps/SDL
+	path = sdl2-test/deps/SDL2
 	url = https://github.com/libsdl-org/SDL
 [submodule "sdl3-test/deps/SDL"]
-	path = sdl3-test/deps/SDL
+	path = sdl3-test/deps/SDL3
 	url = https://github.com/libsdl-org/SDL
 [submodule "sdl3-test/deps/SDL_ttf"]
-	path = sdl3-test/deps/SDL_ttf
+	path = sdl3-test/deps/SDL3_ttf
 	url = https://github.com/libsdl-org/SDL_ttf
 [submodule "sdl2-test/deps/SDL_ttf"]
-	path = sdl2-test/deps/SDL_ttf
+	path = sdl2-test/deps/SDL2_ttf
 	url = https://github.com/libsdl-org/SDL_ttf
 [submodule "sdl2-test/deps/tinygltf"]
 	path = sdl2-test/deps/tinygltf
