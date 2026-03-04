@@ -28,6 +28,9 @@ cd $gamedir
 
 export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 
+unset SDL_GAMECONTROLLERCONFIG
+export SDL_GAMECONTROLLERCONFIG_FILE="$gamedir/assets/gamecontrollerdb.txt"
+
 $TASKSET ./raylib-test 
 
 pm_finish

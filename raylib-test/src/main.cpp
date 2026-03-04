@@ -8,8 +8,6 @@ Model model;
 
 char message[128];
 
-const char * GameControllerDBFilename = "assets/gamecontrollerdb.txt";
-
 const char * ModelFilename = "assets/planet.glb";
 
 const char * GamepadKeyNames[] = {
@@ -38,23 +36,12 @@ int main()
     const int screenWidth = 640;
     const int screenHeight = 480;
 
-    if (!FileExists(GameControllerDBFilename)) {
-        TraceLog(LOG_ERROR, "Can't find '%s'\n", GameControllerDBFilename);
-        return 1;
-    }
-
     if (!FileExists(ModelFilename)) {
         TraceLog(LOG_ERROR, "Can't find '%s'\n", ModelFilename);
         return 1;
     }
-
-    char* mapping = LoadFileText(GameControllerDBFilename);
-
-    SetGamepadMappings(mapping);
-
-    UnloadFileText(mapping);
     
-    InitWindow(screenWidth, screenHeight, "raylib cmake hello world");
+    InitWindow(screenWidth, screenHeight, "raylib-test");
 
     model = LoadModel(ModelFilename);
 
