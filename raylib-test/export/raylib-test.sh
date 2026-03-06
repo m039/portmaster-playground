@@ -1,5 +1,4 @@
 #!/bin/bash
-# PORTMASTER: GodotTest.zip, GodotTest.sh
 
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 
@@ -25,11 +24,6 @@ export gamedir="/$directory/ports/raylib-test"
 
 echo $gamedir
 cd $gamedir
-
-export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
-
-unset SDL_GAMECONTROLLERCONFIG
-export SDL_GAMECONTROLLERCONFIG_FILE="$gamedir/assets/gamecontrollerdb.txt"
 
 $TASKSET ./raylib-test 
 
