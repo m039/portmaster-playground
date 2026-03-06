@@ -21,7 +21,7 @@ fi
 [ -f "${controlfolder}/mod_${CFW_NAME}.txt" ] && source "${controlfolder}/mod_${CFW_NAME}.txt"
 get_controls
 
-export gamedir="/$directory/ports/Dev/Godot3Test"
+export gamedir="/$directory/ports/Godot3Test"
 
 echo $gamedir
 cd $gamedir
@@ -29,5 +29,7 @@ cd $gamedir
 $GPTOKEYB "frt_3.6" &
 
 ./frt_3.6 --main-pack "Godot 3 Test.pck"
+
 $ESUDO kill -9 $(pidof gptokeyb)
+
 pm_finish
